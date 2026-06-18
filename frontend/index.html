@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风洞流场重建系统 | Wind Tunnel Flow Reconstruction</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <div class="logo">
+      <h1>风洞流场<br>重建系统</h1>
+      <span class="subtitle">Wind Tunnel CFD Platform</span>
+    </div>
+
+    <div class="section">
+      <h3>仿真控制</h3>
+      <div class="control-group">
+        <label>雷诺数 Re</label>
+        <input type="number" id="reynolds" value="1000" min="100" max="100000">
+      </div>
+      <div class="control-group">
+        <label>自由来流速度 (m/s)</label>
+        <input type="number" id="uinf" value="1.0" step="0.1" min="0.1">
+      </div>
+      <div class="control-group">
+        <label>迎角 α (°)</label>
+        <input type="number" id="alpha" value="0" step="1" min="-20" max="30">
+      </div>
+      <div class="control-group grid-2">
+        <label>网格 X</label>
+        <input type="number" id="gridX" value="64" min="16" max="256" step="8">
+        <label>网格 Y</label>
+        <input type="number" id="gridY" value="48" min="16" max="256" step="8">
+        <label>网格 Z</label>
+        <input type="number" id="gridZ" value="16" min="8" max="128" step="4">
+      </div>
+      <div class="button-row">
+        <button id="btnCreate" class="btn-primary">创建仿真</button>
+        <button id="btnReset" class="btn-secondary">重置</button>
+      </div>
+      <div class="button-row">
+        <button id="btnStep" class="btn-accent">单步</button>
+        <button id="btnStream" class="btn-warning">开始实时流</button>
+      </div>
+      <div class="control-group">
+        <label>实时流间隔 (ms)</label>
+        <input type="number" id="interval" value="500" min="50" step="50">
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>可视化设置</h3>
+      <div class="control-group">
+        <label>显示模式</label>
+        <select id="vizMode">
+          <option value="volume">体渲染</option>
+          <option value="slice">切面</option>
+          <option value="streamline">流线</option>
+          <option value="vorticity">涡量</option>
+          <option value="pressure">压力分布</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>切面轴</label>
+        <select id="sliceAxis">
+          <option value="z">Z轴</option>
+          <option value="y">Y轴</option>
+          <option value="x">X轴</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>色映射</label>
+        <select id="colormap">
+          <option value="viridis">Viridis</option>
+          <option value="plasma">Plasma</option>
+          <option value="jet">Jet</option>
+          <option value="coolwarm">CoolWarm</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>显示网格</label>
+        <input type="checkbox" id="showGrid" checked>
+      </div>
+      <div class="control-group">
+        <label>显示翼型</label>
+        <input type="checkbox" id="showAirfoil" checked>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>气动分析</h3>
+      <div class="button-row">
+        <button id="btnAnalyze" class="btn-primary">分析当前迎角</button>
+        <button id="btnPolar" class="btn-accent">生成极曲线</button>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <span class="metric-label">升力系数 CL</span>
+          <span class="metric-value" id="metricCL">--</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">阻力系数 CD</span>
+          <span class="metric-value" id="metricCD">--</span>
+        </div>
+        <div class="metric-card highlight">
+          <span class="metric-label">升阻比 L/D</span>
+          <span class="metric-value" id="metricLD">--</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-label">力矩系数 Cm</span>
+          <span class="metric-value" id="metricCM">--</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>多工况对比</h3>
+      <div class="control-group">
+        <label>对比指标</label>
+        <select id="compareMetric">
+          <option value="CL">升力系数 CL</option>
+          <option value="CD">阻力系数 CD</option>
+          <option value="L_D_ratio">升阻比 L/D</option>
+          <option value="CM">力矩系数 Cm</option>
+        </select>
+      </div>
+      <div id="compareList" class="compare-list"></div>
+      <button id="btnCompare" class="btn-secondary w-full">执行对比</button>
+    </div>
+
+    <div class="section">
+      <h3>系统状态</h3>
+      <div class="status-item">
+        <span class="status-dot" id="statusWS"></span>
+        <span>WebSocket 连接</span>
+      </div>
+      <div class="status-item">
+        <span class="status-dot" id="statusCFD"></span>
+        <span>CFD 计算服务</span>
+      </div>
+      <div class="status-info">
+        <span>仿真ID:</span>
+        <code id="simID">--</code>
+      </div>
+      <div class="status-info">
+        <span>时间步:</span>
+        <code id="simStep">0</code>
+      </div>
+      <div class="status-info">
+        <span>仿真时间:</span>
+        <code id="simTime">0.000s</code>
+      </div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="toolbar">
+      <div class="tab-group">
+        <button class="tab active" data-tab="flow">流场视图</button>
+        <button class="tab" data-tab="charts">数据分析</button>
+        <button class="tab" data-tab="sensors">传感器</button>
+      </div>
+      <div class="toolbar-actions">
+        <button id="btnScreenshot" class="tool-btn">截屏</button>
+        <button id="btnExport" class="tool-btn">导出数据</button>
+      </div>
+    </div>
+
+    <div id="view-flow" class="view active">
+      <div id="canvasContainer"></div>
+      <div id="colorbar">
+        <div class="colorbar-title" id="colorbarTitle">速度大小</div>
+        <div class="colorbar-visual" id="colorbarVisual"></div>
+        <div class="colorbar-labels">
+          <span id="colorMin">0.00</span>
+          <span id="colorMax">1.00</span>
+        </div>
+      </div>
+      <div id="hud">
+        <div class="hud-item"><span>Re</span><code id="hudRe">1000</code></div>
+        <div class="hud-item"><span>α</span><code id="hudAlpha">0°</code></div>
+        <div class="hud-item"><span>FPS</span><code id="hudFPS">0</code></div>
+      </div>
+    </div>
+
+    <div id="view-charts" class="view">
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h4>升力系数曲线 CL-α</h4>
+          <canvas id="chartCLAlpha"></canvas>
+        </div>
+        <div class="chart-card">
+          <h4>阻力系数曲线 CD-α</h4>
+          <canvas id="chartCDAlpha"></canvas>
+        </div>
+        <div class="chart-card">
+          <h4>升阻比曲线 L/D-α</h4>
+          <canvas id="chartLDAlpha"></canvas>
+        </div>
+        <div class="chart-card">
+          <h4>极曲线 CL-CD</h4>
+          <canvas id="chartPolar"></canvas>
+        </div>
+        <div class="chart-card span-2">
+          <h4>表面压力分布 Cp-x/c</h4>
+          <canvas id="chartPressure"></canvas>
+        </div>
+        <div class="chart-card span-2">
+          <h4>多工况对比</h4>
+          <canvas id="chartCompare"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="view-sensors" class="view">
+      <div class="sensor-header">
+        <h3>实时传感器数据</h3>
+        <button id="btnSimSensor" class="btn-accent">模拟传感器</button>
+      </div>
+      <div id="sensorGrid" class="sensor-grid"></div>
+      <div class="chart-card">
+        <h4>传感器时序数据</h4>
+        <canvas id="chartSensor"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
